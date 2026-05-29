@@ -16,6 +16,8 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -45,8 +47,6 @@ public class ArachnophobiaPlugin extends Plugin {
 	private ClientThread clientThread;
 
 	private ThreatEvaluator threatEvaluator;
-
-	// Made thread-safe so the game thread and rendering thread don't crash into each other
 	private final List<NPC> activeThreatEntities = new CopyOnWriteArrayList<>();
 	private static final String CONFIG_GROUP = "arachnophobia";
 
@@ -58,10 +58,9 @@ public class ArachnophobiaPlugin extends Plugin {
 	@Override
 	protected void startUp() {
 		threatEvaluator = new SpiderThreatEvaluator();
-		updateEvaluatorConfigurations();
+		threatEvaluator.updateObscuredNpcs(pluginConfig.obscuredNpcs());
 		overlayManager.add(arachnophobiaOverlay);
 
-		// Safely scan NPCs on the game thread during startup
 		clientThread.invokeLater(this::evaluateAllActiveNpcs);
 	}
 
@@ -74,8 +73,7 @@ public class ArachnophobiaPlugin extends Plugin {
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChangedEvent) {
 		if (configChangedEvent.getGroup().equals(CONFIG_GROUP)) {
-			updateEvaluatorConfigurations();
-			// Safely scan NPCs on the game thread when settings change
+			threatEvaluator.updateObscuredNpcs(pluginConfig.obscuredNpcs());
 			clientThread.invokeLater(this::evaluateAllActiveNpcs);
 		}
 	}
@@ -106,28 +104,26 @@ public class ArachnophobiaPlugin extends Plugin {
 			}
 
 			String targetNpcName = targetNpc.getName();
+			boolean isAlreadyObscured = threatEvaluator.evaluate(targetNpc);
 
-			runescapeClient.createMenuEntry(-1)
-					.setOption("Obscure")
-					.setTarget(menuEntryEvent.getTarget())
-					.setType(MenuAction.RUNELITE)
-					.onClick(event -> appendNpcToConfigList("customThreats", pluginConfig.customThreats(), targetNpcName));
-
-			runescapeClient.createMenuEntry(-1)
-					.setOption("Ignore")
-					.setTarget(menuEntryEvent.getTarget())
-					.setType(MenuAction.RUNELITE)
-					.onClick(event -> appendNpcToConfigList("ignoredThreats", pluginConfig.ignoredThreats(), targetNpcName));
+			if (isAlreadyObscured) {
+				runescapeClient.createMenuEntry(-1)
+						.setOption("Reveal")
+						.setTarget(menuEntryEvent.getTarget())
+						.setType(MenuAction.RUNELITE)
+						.onClick(event -> toggleNpcInConfig(targetNpcName, false));
+			} else {
+				runescapeClient.createMenuEntry(-1)
+						.setOption("Obscure")
+						.setTarget(menuEntryEvent.getTarget())
+						.setType(MenuAction.RUNELITE)
+						.onClick(event -> toggleNpcInConfig(targetNpcName, true));
+			}
 		}
 	}
 
 	public List<NPC> retrieveActiveThreats() {
 		return Collections.unmodifiableList(activeThreatEntities);
-	}
-
-	private void updateEvaluatorConfigurations() {
-		threatEvaluator.updateCustomThreats(pluginConfig.customThreats());
-		threatEvaluator.updateIgnoredThreats(pluginConfig.ignoredThreats());
 	}
 
 	private void evaluateAllActiveNpcs() {
@@ -142,15 +138,30 @@ public class ArachnophobiaPlugin extends Plugin {
 		}
 	}
 
-	private void appendNpcToConfigList(String configKey, String currentList, String npcName) {
-		String lowerCaseName = npcName.toLowerCase();
+	private void toggleNpcInConfig(String npcName, boolean addToList) {
+		String currentList = pluginConfig.obscuredNpcs();
+		List<String> items = new ArrayList<>();
 
-		if (currentList.toLowerCase().contains(lowerCaseName)) {
-			return;
+		if (currentList != null && !currentList.isEmpty()) {
+			for (String s : currentList.split(",")) {
+				String trimmed = s.trim().toLowerCase();
+				if (!trimmed.isEmpty()) {
+					items.add(trimmed);
+				}
+			}
 		}
 
-		String newList = currentList.isEmpty() ? lowerCaseName : currentList + ", " + lowerCaseName;
+		String targetName = npcName.toLowerCase();
 
-		configManager.setConfiguration(CONFIG_GROUP, configKey, newList);
+		if (addToList && !items.contains(targetName)) {
+			items.add(targetName);
+		} else if (!addToList && items.contains(targetName)) {
+			items.remove(targetName);
+		} else {
+			return; // No change needed
+		}
+
+		String newList = String.join(", ", items);
+		configManager.setConfiguration(CONFIG_GROUP, "obscuredNpcs", newList);
 	}
 }

@@ -1,58 +1,40 @@
 package com.danders;
 
 import net.runelite.api.NPC;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 public class SpiderThreatEvaluator implements ThreatEvaluator {
-    private static final Set<String> DEFAULT_THREAT_NAMES = new HashSet<>(Arrays.asList(
-            "spider", "sarachnis", "venenatis", "araxxor", "spindel", "nylocas"
-    ));
-
-    private final Set<String> customThreatNames = new HashSet<>();
-    private final Set<Integer> customThreatIds = new HashSet<>();
-
-    private final Set<String> ignoredThreatNames = new HashSet<>();
-    private final Set<Integer> ignoredThreatIds = new HashSet<>();
+    private final Set<String> obscuredNames = new HashSet<>();
+    private final Set<Integer> obscuredIds = new HashSet<>();
 
     @Override
-    public void updateCustomThreats(String customThreatsInput) {
-        customThreatNames.clear();
-        customThreatIds.clear();
-        populateEvaluationSets(customThreatsInput, customThreatNames, customThreatIds);
-    }
+    public void updateObscuredNpcs(String input) {
+        obscuredNames.clear();
+        obscuredIds.clear();
 
-    @Override
-    public void updateIgnoredThreats(String ignoredThreatsInput) {
-        ignoredThreatNames.clear();
-        ignoredThreatIds.clear();
-        populateEvaluationSets(ignoredThreatsInput, ignoredThreatNames, ignoredThreatIds);
-    }
-
-    private void populateEvaluationSets(String inputString, Set<String> nameTargetSet, Set<Integer> idTargetSet) {
-        if (inputString == null || inputString.trim().isEmpty()) {
+        if (input == null || input.trim().isEmpty()) {
             return;
         }
 
-        String[] entries = inputString.split(",");
+        String[] entries = input.split(",");
         for (String entry : entries) {
             String trimmedEntry = entry.trim().toLowerCase();
             if (trimmedEntry.isEmpty()) {
                 continue;
             }
             try {
-                idTargetSet.add(Integer.parseInt(trimmedEntry));
+                obscuredIds.add(Integer.parseInt(trimmedEntry));
             } catch (NumberFormatException exception) {
-                nameTargetSet.add(trimmedEntry);
+                obscuredNames.add(trimmedEntry);
             }
         }
     }
 
     @Override
     public boolean evaluate(NPC npc) {
-        if (ignoredThreatIds.contains(npc.getId())) {
-            return false;
+        if (obscuredIds.contains(npc.getId())) {
+            return true;
         }
 
         String npcName = npc.getName();
@@ -62,24 +44,8 @@ public class SpiderThreatEvaluator implements ThreatEvaluator {
 
         String lowerCaseName = npcName.toLowerCase();
 
-        for (String ignoredName : ignoredThreatNames) {
-            if (lowerCaseName.contains(ignoredName)) {
-                return false;
-            }
-        }
-
-        if (customThreatIds.contains(npc.getId())) {
-            return true;
-        }
-
-        for (String customName : customThreatNames) {
-            if (lowerCaseName.contains(customName)) {
-                return true;
-            }
-        }
-
-        for (String defaultName : DEFAULT_THREAT_NAMES) {
-            if (lowerCaseName.contains(defaultName)) {
+        for (String name : obscuredNames) {
+            if (lowerCaseName.equals(name)) {
                 return true;
             }
         }
