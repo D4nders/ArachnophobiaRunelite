@@ -158,7 +158,7 @@ public class ArachnophobiaPlugin extends Plugin {
 		} else if (!addToList && items.contains(targetName)) {
 			items.remove(targetName);
 		} else {
-			return; // No change needed
+			return;
 		}
 
 		String newList = String.join(", ", items);

@@ -14,7 +14,14 @@ public interface ArachnophobiaConfig extends Config {
 			position = 1
 	)
 	default String obscuredNpcs() {
-		return "spider, giant spider, sarachnis, venenatis, araxxor, spindel, nylocas";
+		return "spider, kalrag, nid, sraracha, venenatis spiderling, araxyte, araxxor, " +
+				"blessed spider, crypt spider, deadly red spider, fever spider, " +
+				"giant crypt spider, giant spider, huge spider, ice spider, jungle spider, " +
+				"poison spider, shadow spider, sarachnis, spindel, spindel's spiderling, " +
+				"temple spider, venenatis, venenatis' spiderling, sraracha, " +
+				"nylocas ischyros, nylocas toxobolos, nylocas hagios, nylocas matomenos, " +
+				"nylocas athanatos, nylocas vasilias, nylocas prinkipas, nylocas queen, " +
+				"verzik vitur, lil' zik, lil' nylo";
 	}
 
 	@ConfigItem(
