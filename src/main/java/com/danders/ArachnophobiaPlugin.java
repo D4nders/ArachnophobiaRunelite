@@ -25,7 +25,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @PluginDescriptor(
 		name = "Arachnophobia Mode",
 		description = "Obscures spiders and custom user-defined NPCs",
-		tags = {"arachnophobia", "spider", "hide"}
+		tags = {"arachnophobia", "spider", "hide", "accessibility", "silhouette", "nylocas"}
 )
 public class ArachnophobiaPlugin extends Plugin {
 	@Inject
@@ -104,21 +104,14 @@ public class ArachnophobiaPlugin extends Plugin {
 			}
 
 			String targetNpcName = targetNpc.getName();
-			boolean isAlreadyObscured = threatEvaluator.evaluate(targetNpc);
+			boolean isCurrentlyObscured = threatEvaluator.evaluate(targetNpc);
+			String menuOption = isCurrentlyObscured ? "Reveal" : "Obscure";
 
-			if (isAlreadyObscured) {
-				runescapeClient.createMenuEntry(-1)
-						.setOption("Reveal")
-						.setTarget(menuEntryEvent.getTarget())
-						.setType(MenuAction.RUNELITE)
-						.onClick(event -> toggleNpcInConfig(targetNpcName, false));
-			} else {
-				runescapeClient.createMenuEntry(-1)
-						.setOption("Obscure")
-						.setTarget(menuEntryEvent.getTarget())
-						.setType(MenuAction.RUNELITE)
-						.onClick(event -> toggleNpcInConfig(targetNpcName, true));
-			}
+			runescapeClient.createMenuEntry(-1)
+					.setOption(menuOption)
+					.setTarget(menuEntryEvent.getTarget())
+					.setType(MenuAction.RUNELITE)
+					.onClick(event -> toggleNpcInConfig(targetNpcName, isCurrentlyObscured));
 		}
 	}
 
@@ -138,30 +131,26 @@ public class ArachnophobiaPlugin extends Plugin {
 		}
 	}
 
-	private void toggleNpcInConfig(String npcName, boolean addToList) {
-		String currentList = pluginConfig.obscuredNpcs();
-		List<String> items = new ArrayList<>();
+	private void toggleNpcInConfig(String npcName, boolean remove) {
+		String[] entries = pluginConfig.obscuredNpcs().split(",");
+		List<String> currentNpcs = new ArrayList<>();
 
-		if (currentList != null && !currentList.isEmpty()) {
-			for (String s : currentList.split(",")) {
-				String trimmed = s.trim().toLowerCase();
-				if (!trimmed.isEmpty()) {
-					items.add(trimmed);
-				}
+		for (String entry : entries) {
+			String trimmed = entry.trim().toLowerCase();
+			if (!trimmed.isEmpty()) {
+				currentNpcs.add(trimmed);
 			}
 		}
 
-		String targetName = npcName.toLowerCase();
+		String lowerCaseName = npcName.toLowerCase();
 
-		if (addToList && !items.contains(targetName)) {
-			items.add(targetName);
-		} else if (!addToList && items.contains(targetName)) {
-			items.remove(targetName);
-		} else {
-			return;
+		if (remove) {
+			currentNpcs.removeIf(name -> name.equals(lowerCaseName));
+		} else if (!currentNpcs.contains(lowerCaseName)) {
+			currentNpcs.add(lowerCaseName);
 		}
 
-		String newList = String.join(", ", items);
+		String newList = String.join(", ", currentNpcs);
 		configManager.setConfiguration(CONFIG_GROUP, "obscuredNpcs", newList);
 	}
 }
